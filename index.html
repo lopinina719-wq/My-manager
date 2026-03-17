@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>S.T.E.A.L.T.H. Cloud</title>
+    <style>
+        body { background-color: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff41; text-align: center; width: 350px; }
+        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 10px 20px; cursor: pointer; margin-top: 10px; font-family: inherit; }
+        .btn:hover { background: #00ff41; color: #0a0a0a; }
+        .progress { margin-top: 10px; color: #fff; font-size: 0.8em; }
+        input[type="file"] { display: none; }
+        .code-display { font-size: 1.8em; margin: 15px 0; color: #fff; text-shadow: 0 0 10px #00ff41; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>UPLOADER V1.0</h2>
+        <label class="btn">
+            ВИБРАТИ ФАЙЛ
+            <input type="file" id="fileInput">
+        </label>
+        
+        <div id="uploadBox" style="display:none;">
+            <p id="fileName"></p>
+            <button class="btn" onclick="startUpload()">ЗАВАНТАЖИТИ В ХМАРУ</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="result" style="display:none;">
+            <p>ФАЙЛ ЗАШИФРОВАНО. КОД:</p>
+            <div class="code-display" id="accessCode"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7v1Sz2BnIJ25VgVm6i5hUdANYZao7TAs",
+            authDomain: "file-manager-4772e.firebaseapp.com",
+            projectId: "file-manager-4772e",
+            storageBucket: "file-manager-4772e.firebasestorage.app",
+            messagingSenderId: "434958594622",
+            appId: "1:434958594622:web:a01b4c38830b1153dcd76f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+
+        window.startUpload = async function() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
+            // Генеруємо 4-значний код
+            const code = Math.floor(1000 + Math.random() * 9000);
+            const storageRef = ref(storage, 'files/' + code + '/' + file.name);
+            
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    document.getElementById('status').innerText = 'ПРОГРЕС: ' + Math.round(progress) + '%';
+                }, 
+                (error) => {
+                    alert("Помилка! Перевір Rules у Firebase Storage!");
+                    console.error(error);
+                }, 
+                () => {
+                    document.getElementById('uploadBox').style.display = 'none';
+                    document.getElementById('status').style.display = 'none';
+                    document.getElementById('result').style.display = 'block';
+                    document.getElementById('accessCode').innerText = code;
+                }
+            );
+        }
+
+        document.getElementById('fileInput').onchange = (e) => {
+            document.getElementById('fileName').innerText = e.target.files[0].name;
+            document.getElementById('uploadBox').style.display = 'block';
+        };
+    </script>
+</body>
+</html>
