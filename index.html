@@ -2,41 +2,56 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>S.T.E.A.L.T.H. Cloud</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.T.E.A.L.T.H. Manager</title>
     <style>
-        body { background-color: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .container { border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff41; text-align: center; width: 350px; }
-        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 10px 20px; cursor: pointer; margin-top: 10px; font-family: inherit; }
-        .btn:hover { background: #00ff41; color: #0a0a0a; }
-        .progress { margin-top: 10px; color: #fff; font-size: 0.8em; }
+        body { background-color: #050505; color: #00ff41; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
+        .container { border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff41; text-align: center; width: 90%; max-width: 350px; background: #0a0a0a; }
+        h2 { text-shadow: 0 0 8px #00ff41; font-size: 1.5em; margin-top: 0; }
+        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 12px; cursor: pointer; margin: 10px 0; font-family: inherit; width: 100%; font-weight: bold; transition: 0.2s; }
+        .btn:hover:not(:disabled) { background: #00ff41; color: #000; box-shadow: 0 0 10px #00ff41; }
+        .btn:disabled { border-color: #333; color: #333; cursor: not-allowed; }
         input[type="file"] { display: none; }
-        .code-display { font-size: 1.8em; margin: 15px 0; color: #fff; text-shadow: 0 0 10px #00ff41; }
+        input[type="text"] { background: #111; color: #fff; border: 1px solid #00ff41; padding: 10px; width: calc(100% - 22px); text-align: center; margin: 10px 0; outline: none; }
+        .code-display { font-size: 2.2em; margin: 10px 0; color: #fff; text-shadow: 0 0 10px #00ff41; }
+        hr { border: 0; border-top: 1px solid #222; margin: 20px 0; }
+        #status { font-size: 0.9em; margin: 10px 0; color: #00ff41; }
+        .label-text { font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>UPLOADER V1.0</h2>
-        <label class="btn">
+        <h2>CORE_MANAGER V1.1</h2>
+
+        <div class="label-text">Upload Section</div>
+        <label class="btn" id="selectBtn">
             ВИБРАТИ ФАЙЛ
             <input type="file" id="fileInput">
         </label>
         
         <div id="uploadBox" style="display:none;">
-            <p id="fileName"></p>
-            <button class="btn" onclick="startUpload()">ЗАВАНТАЖИТИ В ХМАРУ</button>
+            <p id="fileName" style="font-size: 0.8em; color: #888; margin: 5px 0;"></p>
+            <button class="btn" id="upBtn" onclick="startUpload()">ВІДПРАВИТИ В ХМАРУ</button>
         </div>
-
+        
         <div id="status"></div>
+
         <div id="result" style="display:none;">
-            <p>ФАЙЛ ЗАШИФРОВАНО. КОД:</p>
+            <p class="label-text">Access Code:</p>
             <div class="code-display" id="accessCode"></div>
         </div>
+
+        <hr>
+
+        <div class="label-text">Download Section</div>
+        <input type="text" id="downloadCode" placeholder="ВВЕДІТЬ 4 ЦИФРИ" maxlength="4">
+        <button class="btn" id="dlBtn" onclick="startDownload()">ОТРИМАТИ ФАЙЛ</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL, listAll } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC7v1Sz2BnIJ25VgVm6i5hUdANYZao7TAs",
@@ -50,24 +65,30 @@
         const app = initializeApp(firebaseConfig);
         const storage = getStorage(app);
 
+        // --- ЗАВАНТАЖЕННЯ ---
         window.startUpload = async function() {
             const file = document.getElementById('fileInput').files[0];
             if (!file) return;
 
-            // Генеруємо 4-значний код
             const code = Math.floor(1000 + Math.random() * 9000);
             const storageRef = ref(storage, 'files/' + code + '/' + file.name);
-            
+            const upBtn = document.getElementById('upBtn');
+            const selectBtn = document.getElementById('selectBtn');
+
+            upBtn.disabled = true;
+            upBtn.innerText = "З'ЄДНАННЯ...";
+
             const uploadTask = uploadBytesResumable(storageRef, file);
 
             uploadTask.on('state_changed', 
                 (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    document.getElementById('status').innerText = 'ПРОГРЕС: ' + Math.round(progress) + '%';
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    document.getElementById('status').innerText = 'ВАНТАЖИМО: ' + progress + '%';
                 }, 
-                (error) => {
-                    alert("Помилка! Перевір Rules у Firebase Storage!");
-                    console.error(error);
+                (err) => { 
+                    alert("Помилка! Перевір Rules у Firebase."); 
+                    upBtn.disabled = false;
+                    upBtn.innerText = "ВІДПРАВИТИ ЗНОВУ";
                 }, 
                 () => {
                     document.getElementById('uploadBox').style.display = 'none';
@@ -78,9 +99,44 @@
             );
         }
 
+        // --- СКАЧУВАННЯ ---
+        window.startDownload = async function() {
+            const code = document.getElementById('downloadCode').value;
+            const dlBtn = document.getElementById('dlBtn');
+            if (!code || code.length < 4) return;
+
+            dlBtn.disabled = true;
+            dlBtn.innerText = "ПОШУК...";
+
+            try {
+                const folderRef = ref(storage, 'files/' + code);
+                const res = await listAll(folderRef);
+                
+                if (res.items.length === 0) {
+                    alert("Файл не знайдено!");
+                    dlBtn.disabled = false;
+                    dlBtn.innerText = "ОТРИМАТИ ФАЙЛ";
+                    return;
+                }
+
+                const url = await getDownloadURL(res.items[0]);
+                window.open(url, '_blank');
+                dlBtn.disabled = false;
+                dlBtn.innerText = "ОТРИМАТИ ФАЙЛ";
+            } catch (e) {
+                alert("Помилка доступу.");
+                dlBtn.disabled = false;
+                dlBtn.innerText = "ОТРИМАТИ ФАЙЛ";
+            }
+        }
+
+        // ПРОВІРКА ВИБОРУ ФАЙЛУ
         document.getElementById('fileInput').onchange = (e) => {
-            document.getElementById('fileName').innerText = e.target.files[0].name;
-            document.getElementById('uploadBox').style.display = 'block';
+            if (e.target.files[0]) {
+                document.getElementById('fileName').innerText = e.target.files[0].name;
+                document.getElementById('uploadBox').style.display = 'block';
+                document.getElementById('result').style.display = 'none';
+            }
         };
     </script>
 </body>
